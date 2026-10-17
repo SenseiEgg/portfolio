@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Isometric Game UI Concept</title>
+    <title>2D Isometric RPG Framework</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
         
         body {
-            background: #1a1a2e;
-            color: #fff;
+            background: #0f111a;
+            color: #00ff66;
             height: 100vh;
             display: flex;
             flex-direction: column;
@@ -18,149 +18,194 @@
             overflow: hidden;
         }
 
-        /* Game Container */
+        /* RPG Game Monitor */
         .game-viewport {
             position: relative;
-            width: 600px;
-            height: 400px;
-            background: radial-gradient(circle, #1f4068 0%, #162447 100%);
-            border-radius: 20px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            border: 4px solid #e94560;
+            width: 700px;
+            height: 450px;
+            background: #121824;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0, 255, 102, 0.2);
+            border: 3px solid #00ff66;
+            overflow: hidden;
+        }
+
+        /* Isometric Map Camera Container */
+        .map-camera {
+            position: absolute;
+            width: 100%;
+            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
-        /* 3D Isometric Wrapper */
+        /* World Plane Rotated into 2.5D Projection */
         .iso-world {
             position: relative;
-            width: 200px;
-            height: 200px;
-            /* This math magic rotates and tilts the flat square into 3D isometric perspective */
+            width: 400px;
+            height: 400px;
             transform: rotateX(60deg) rotateZ(-45deg);
             transform-style: preserve-3d;
-            transition: transform 0.5s ease;
         }
 
-        /* The Grid/Terrain Block */
-        .iso-tile {
+        /* Flat Tile Grid */
+        .grid-map {
             position: absolute;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #4ef037 0%, #2b931b 100%);
-            border: 4px solid #1e5f12;
-            box-shadow: -10px 10px 0px #16460d; /* Creates the "thickness/depth" of the ground */
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            background: #1b2234;
         }
 
-        /* Basic Isometric Character Block */
-        .iso-character {
+        .tile {
+            border: 1px solid rgba(0, 255, 102, 0.15);
+            background: #161c2a;
+            transition: background 0.2s;
+        }
+        .tile:nth-child(odd) { background: #1a2130; }
+
+        /* Controllable Player Entity */
+        .player-sprite {
             position: absolute;
-            width: 40px;
-            height: 40px;
-            background: #e94560;
-            top: 40px;
-            left: 40px;
-            transform: translateZ(20px); /* Lifts the character slightly off the ground */
-            box-shadow: -5px 5px 0px #951c30;
+            width: 35px;
+            height: 35px;
+            background: #ff0055;
+            border: 2px solid #ffffff;
+            box-shadow: -4px 4px 0px #aa0033, 0 10px 15px rgba(0,0,0,0.5);
+            transform: translateZ(15px); /* Raise sprite above ground */
+            transition: left 0.1s linear, top 0.1s linear;
             border-radius: 4px;
         }
 
-        /* UI Overlay Layer (Flat on screen, not rotated) */
-        .game-ui {
+        /* UI Overlays */
+        .game-hud {
             position: absolute;
             width: 100%;
             height: 100%;
             top: 0;
             left: 0;
-            pointer-events: none; /* Allows clicks to pass through to buttons if needed */
+            pointer-events: none;
             padding: 20px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
         }
 
-        /* Top HUD Bar */
-        .hud-top {
+        .hud-row {
             display: flex;
             justify-content: space-between;
             pointer-events: auto;
         }
 
-        .stat-badge {
-            background: rgba(15, 15, 26, 0.8);
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: 2px solid #e94560;
-            font-weight: bold;
-            font-size: 14px;
+        .hud-panel {
+            background: rgba(15, 23, 42, 0.9);
+            padding: 10px 15px;
+            border-radius: 4px;
+            border: 1px solid #00ff66;
+            font-size: 13px;
+            color: #ffffff;
+            text-shadow: 0 0 5px #00ff66;
         }
 
-        /* Bottom Action Buttons */
-        .hud-bottom {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            pointer-events: auto;
+        .controls-tip {
+            color: #00ff66;
+            animation: blink 1.5s infinite;
         }
 
-        .ui-btn {
-            background: #e94560;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-weight: bold;
-            border-radius: 10px;
-            cursor: pointer;
-            box-shadow: 0 4px 0 #951c30;
-            transition: all 0.1s ease;
-        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-        .ui-btn:active {
-            transform: translateY(4px);
-            box-shadow: none;
-        }
-
-        /* Project Title Label */
-        .project-info {
+        .project-details {
             margin-top: 20px;
             text-align: center;
         }
-        .project-info h1 { font-size: 20px; margin-bottom: 5px; color: #4ef037; }
-        .project-info p { font-size: 14px; color: #8a8a9e; }
+        .project-details h1 { font-size: 18px; letter-spacing: 2px; }
+        .project-details p { font-size: 13px; color: #577093; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-    <!-- Main Viewport Box -->
+    <!-- Game Viewport -->
     <div class="game-viewport">
         
-        <!-- The 3D Isometric View -->
-        <div class="iso-world">
-            <div class="iso-tile"></div>
-            <div class="iso-character"></div>
+        <!-- Isometric Engine Camera -->
+        <div class="map-camera">
+            <div class="iso-world">
+                <!-- 8x8 Visual Map Matrix -->
+                <div class="grid-map" id="map-grid"></div>
+                <!-- Dynamic Player Sprite -->
+                <div id="player" class="player-sprite"></div>
+            </div>
         </div>
 
-        <!-- The Flat 2D User Interface Layer -->
-        <div class="game-ui">
-            <div class="hud-top">
-                <div class="stat-badge">❤️ HP: 100/100</div>
-                <div class="stat-badge">🪙 GOLD: 1,250</div>
+        <!-- 2D Screen Space RPG HUD Layer -->
+        <div class="game-hud">
+            <div class="hud-row">
+                <div class="hud-panel">🕹️ ENGINE: ACTIVE</div>
+                <div class="hud-panel">📍 POS: <span id="pos-display">X: 0, Y: 0</span></div>
             </div>
             
-            <div class="hud-bottom">
-                <button class="ui-btn" onclick="alert('Action: Build triggered!')">🔨 BUILD</button>
-                <button class="ui-btn" onclick="alert('Action: Move triggered!')">🏃 MOVE</button>
+            <div class="hud-row">
+                <div class="hud-panel controls-tip">⌨️ PRESS [W, A, S, D] TO WALK HERO</div>
+                <div class="hud-panel">MAP: 8x8 SYSTEM</div>
             </div>
         </div>
 
     </div>
 
-    <!-- Subtitle Info -->
-    <div class="project-info">
-        <h1>Isometric Interface Framework</h1>
-        <p>A CSS 3D matrix trial showcasing isometric layering and game HUD layout.</p>
+    <!-- Metadata for Recruiter Review -->
+    <div class="project-details">
+        <h1>[SENSEIEGG_ENGINE_V1]</h1>
+        <p>A reactive JavaScript movement matrix mapping keys directly to isometric ground projections.</p>
     </div>
 
+    <script>
+        // Generate visual matrix tiles programmatically 
+        const gridMap = document.getElementById('map-grid');
+        for (let i = 0; i < 64; i++) {
+            const tile = document.createElement('div');
+            tile.classList.add('tile');
+            gridMap.appendChild(tile);
+        }
+
+        const player = document.getElementById('player');
+        const posDisplay = document.getElementById('pos-display');
+
+        // Grid coordinate layout settings
+        let pX = 0; // Grid position horizontal (0-7)
+        let pY = 0; // Grid position vertical (0-7)
+        const tileSize = 50; // Size matching our 400px container split into 8 chunks
+
+        // Translate abstract grid indexes into visual layout placements
+        function updatePlayerPosition() {
+            // Constrain movement paths within boundary edges
+            pX = Math.max(0, Math.min(7, pX));
+            pY = Math.max(0, Math.min(7, pY));
+
+            player.style.left = (pX * tileSize) + 'px';
+            player.style.top = (pY * tileSize) + 'px';
+            
+            posDisplay.innerText = `X: ${pX}, Y: ${pY}`;
+        }
+
+        // Catch active key presses and resolve screen directions accurately
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            
+            // Isometric perspective remaps directions:
+            // 'w' moves up-right, 's' moves down-left, etc.
+            if (key === 'w') { pY -= 1; }
+            if (key === 's') { pY += 1; }
+            if (key === 'a') { pX -= 1; }
+            if (key === 'd') { pX += 1; }
+
+            updatePlayerPosition();
+        });
+
+        // Initialize setup on load
+        updatePlayerPosition();
+    </script>
 </body>
 </html>
