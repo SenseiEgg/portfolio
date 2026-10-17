@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Isometric Game UI Concept</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+        
+        body {
+            background: #1a1a2e;
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Game Container */
+        .game-viewport {
+            position: relative;
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(circle, #1f4068 0%, #162447 100%);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 4px solid #e94560;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 3D Isometric Wrapper */
+        .iso-world {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            /* This math magic rotates and tilts the flat square into 3D isometric perspective */
+            transform: rotateX(60deg) rotateZ(-45deg);
+            transform-style: preserve-3d;
+            transition: transform 0.5s ease;
+        }
+
+        /* The Grid/Terrain Block */
+        .iso-tile {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #4ef037 0%, #2b931b 100%);
+            border: 4px solid #1e5f12;
+            box-shadow: -10px 10px 0px #16460d; /* Creates the "thickness/depth" of the ground */
+        }
+
+        /* Basic Isometric Character Block */
+        .iso-character {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #e94560;
+            top: 40px;
+            left: 40px;
+            transform: translateZ(20px); /* Lifts the character slightly off the ground */
+            box-shadow: -5px 5px 0px #951c30;
+            border-radius: 4px;
+        }
+
+        /* UI Overlay Layer (Flat on screen, not rotated) */
+        .game-ui {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none; /* Allows clicks to pass through to buttons if needed */
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Top HUD Bar */
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            pointer-events: auto;
+        }
+
+        .stat-badge {
+            background: rgba(15, 15, 26, 0.8);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 2px solid #e94560;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Bottom Action Buttons */
+        .hud-bottom {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            pointer-events: auto;
+        }
+
+        .ui-btn {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #951c30;
+            transition: all 0.1s ease;
+        }
+
+        .ui-btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* Project Title Label */
+        .project-info {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .project-info h1 { font-size: 20px; margin-bottom: 5px; color: #4ef037; }
+        .project-info p { font-size: 14px; color: #8a8a9e; }
+    </style>
+</head>
+<body>
+
+    <!-- Main Viewport Box -->
+    <div class="game-viewport">
+        
+        <!-- The 3D Isometric View -->
+        <div class="iso-world">
+            <div class="iso-tile"></div>
+            <div class="iso-character"></div>
+        </div>
+
+        <!-- The Flat 2D User Interface Layer -->
+        <div class="game-ui">
+            <div class="hud-top">
+                <div class="stat-badge">❤️ HP: 100/100</div>
+                <div class="stat-badge">🪙 GOLD: 1,250</div>
+            </div>
+            
+            <div class="hud-bottom">
+                <button class="ui-btn" onclick="alert('Action: Build triggered!')">🔨 BUILD</button>
+                <button class="ui-btn" onclick="alert('Action: Move triggered!')">🏃 MOVE</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Subtitle Info -->
+    <div class="project-info">
+        <h1>Isometric Interface Framework</h1>
+        <p>A CSS 3D matrix trial showcasing isometric layering and game HUD layout.</p>
+    </div>
+
+</body>
+</html>
