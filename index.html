@@ -3,172 +3,239 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Classic 2D Top-Down RPG Engine</title>
+    <title>Full-Screen 2D RPG Action Engine</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
         
-        body {
-            background: #222;
-            color: #fff;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+        body, html {
+            width: 100%;
+            height: 100%;
+            background: #111;
             overflow: hidden;
-        }
-
-        /* Classic Game Boy Style Screen Viewport */
-        .game-screen {
             position: relative;
-            width: 512px;
-            height: 448px;
-            background: #8bac0f; /* Retro green tint background */
-            border: 8px solid #333;
-            border-radius: 4px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            overflow: hidden;
         }
 
-        /* 2D Flat Top-Down Map Grid (No 3D Tilting) */
-        .rpg-map {
+        /* Full Screen Playable Overworld Canvas */
+        .rpg-world {
             position: absolute;
-            width: 512px;
-            height: 320px;
-            display: grid;
-            grid-template-columns: repeat(8, 64px);
-            grid-template-rows: repeat(5, 64px);
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: calc(100vh - (100vh / 15)); /* Reserves exactly 1/15th for the taskbar */
+            background: #4a7c59; /* Classic RPG grass green background */
+            background-image: 
+                radial-gradient(rgba(0,0,0,0.08) 15%, transparent 16%),
+                radial-gradient(rgba(0,0,0,0.05) 15%, transparent 16%);
+            background-size: 60px 60px;
+            background-position: 0 0, 30px 30px;
         }
 
-        /* Map World Grass Tiles */
-        .tile {
-            width: 64px;
-            height: 64px;
-            background: #9bbc0f;
-            border: 1px solid #8bac0f;
-            image-rendering: pixelated; /* Keeps pixel art sharp if using images */
-        }
-        /* Create alternate tile shades to mimic retro texture patterns */
-        .tile:nth-child(3n) { background: #8bac0f; }
-
-        /* Controllable 2D Character Sprite Block */
+        /* Player Character Sprite Block */
         .player-sprite {
             position: absolute;
-            width: 48px;
-            height: 48px;
-            background: #306230; /* Dark green placeholder block */
-            border: 3px solid #0f380f;
-            border-radius: 4px;
-            left: 0px;
-            top: 0px;
-            /* Center the sprite nicely inside its current 64px tile path */
-            margin-left: 8px;
-            margin-top: 8px;
-            transition: left 0.1s cubic-bezier(0.25, 1, 0.5, 1), top 0.1s cubic-bezier(0.25, 1, 0.5, 1);
+            width: 40px;
+            height: 40px;
+            background: #2b5c8f; /* Blue Hero Block */
+            border: 3px solid #1a3a5f;
+            border-radius: 6px;
             z-index: 10;
+            box-shadow: 0 6px 10px rgba(0,0,0,0.3);
+            transition: left 0.1s linear, top 0.1s linear;
         }
 
-        /* Iconic RPG Text Dialogue Box Layout */
-        .dialogue-box {
+        /* Bow and Arrow Weapon Graphic Overlay attached to Hero */
+        .bow-attachment {
+            position: absolute;
+            right: -10px;
+            top: 12px;
+            width: 6px;
+            height: 16px;
+            background: #8b5a2b; /* Wooden bow indicator */
+            border-radius: 50%;
+            border-left: 2px solid #fff; /* String link line */
+        }
+
+        /* Dynamic Spawned Enemy Target Objects */
+        .enemy {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            background: #b23b3b; /* Red Aggro Entity Block */
+            border: 3px solid #5c1a1a;
+            border-radius: 4px;
+            z-index: 5;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+        }
+
+        /* Projectile Arrow Node Elements */
+        .arrow {
+            position: absolute;
+            width: 16px;
+            height: 4px;
+            background: #ddd;
+            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
+            z-index: 8;
+        }
+
+        /* Taskbar Box Element taking up exactly 1/15th of the window height */
+        .game-taskbar {
             position: absolute;
             bottom: 0;
             left: 0;
-            width: 100%;
-            height: 128px;
-            background: #ffffff;
-            border-top: 6px double #0f380f;
-            padding: 16px;
-            color: #0f380f;
+            width: 100vw;
+            height: calc(100vh / 15);
+            background: #f4f4f4;
+            border-top: 4px double #333;
+            padding: 0 20px;
+            color: #222;
             font-weight: bold;
-            font-size: 18px;
-            line-height: 1.4;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 14px;
+            z-index: 100;
         }
 
-        .hud-tip {
-            font-size: 12px;
-            margin-top: 8px;
-            color: #888;
-            letter-spacing: 1px;
+        .log-feed {
+            color: #c0392b;
+            font-size: 15px;
+            flex-grow: 1;
+            margin-left: 30px;
+        }
+
+        .controls-legend {
+            font-size: 11px;
+            color: #666;
+            text-align: right;
         }
     </style>
 </head>
 <body>
 
-    <!-- Retro Game Engine Viewport Container -->
-    <div class="game-screen">
-        
-        <!-- 2D Overworld Map Grid View -->
-        <div class="rpg-map" id="world-map"></div>
-        
-        <!-- Player Sprite Character Instance -->
-        <div id="hero" class="player-sprite"></div>
-
-        <!-- Classic Bottom Dialogue Display Window -->
-        <div class="dialogue-box">
-            <div id="text-feed">SENSEIEGG started a new trial adventure!</div>
-            <div class="hud-tip">[WASD keys to walk around map]</div>
+    <!-- Playable Arena Layer -->
+    <div class="rpg-world" id="world">
+        <!-- Player Entity with Equipped Bow -->
+        <div id="player" class="player-sprite">
+            <div class="bow-attachment"></div>
         </div>
+    </div>
 
+    <!-- Taskbar Footer Monitor -->
+    <div class="game-taskbar">
+        <div>🏹 WEAPON: ACTIVE BOW</div>
+        <div class="log-feed" id="status-text">SYSTEM: An enemy camp spawned across the fields!</div>
+        <div class="controls-legend">⚡ [WASD] Move | [SPACEBAR] Shoot Right</div>
     </div>
 
     <script>
-        // Draw standard 8x5 map grid structure programmatically
-        const mapContainer = document.getElementById('world-map');
-        for (let i = 0; i < 40; i++) {
-            const block = document.createElement('div');
-            block.classList.add('tile');
-            mapContainer.appendChild(block);
+        const world = document.getElementById('world');
+        const player = document.getElementById('player');
+        const statusText = document.getElementById('status-text');
+
+        // Dynamic Position Bounds Management
+        let pX = 100; 
+        let pY = 100;
+        const moveSpeed = 25;
+
+        // Tracks active array lists for runtime rendering loops
+        let enemiesArray = [];
+        let arrowsArray = [];
+
+        function updatePlayerPlacement() {
+            // Read active screen window sizes dynamically
+            const maxWidth = window.innerWidth - 45;
+            const maxHeight = (window.innerHeight - (window.innerHeight / 15)) - 45;
+
+            pX = Math.max(10, Math.min(maxWidth, pX));
+            pY = Math.max(10, Math.min(maxHeight, pY));
+
+            player.style.left = pX + 'px';
+            player.style.top = pY + 'px';
         }
 
-        const hero = document.getElementById('hero');
-        const textFeed = document.getElementById('text-feed');
-
-        // Track standard cell coordinate indices directly
-        let gridX = 0; // Boundary range: 0 to 7 chunks horizontally
-        let gridY = 0; // Boundary range: 0 to 4 chunks vertically
-        const stepSize = 64; // Distance step increment matches tile size dimensions exactly
-
-        // Array of randomized flavor text alert updates to cycle through on footsteps
-        const travelQuotes = [
-            "You walked into some tall grass... Nothing appeared.",
-            "A cozy breeze blows past your pixelated face.",
-            "You found a hidden item signpost! It reads: 'Keep Coding!'",
-            "Your UI/UX design internship entry details look promising!",
-            "You hear familiar retro 8-bit chiptune melodies playing nearby."
-        ];
-
-        function renderMovement() {
-            // Keep player firmly bounded within active viewport screen dimensions
-            gridX = Math.max(0, Math.min(7, gridX));
-            gridY = Math.max(0, Math.min(4, gridY));
-
-            hero.style.left = (gridX * stepSize) + 'px';
-            hero.style.top = (gridY * stepSize) + 'px';
+        // Programmatic Enemy Factory Spawner
+        function spawnTargetEnemy() {
+            const enemyNode = document.createElement('div');
+            enemyNode.classList.add('enemy');
+            
+            // Generate random plot coordinates avoiding the header edges
+            const spawnX = Math.floor(Math.random() * (window.innerWidth - 100)) + 50;
+            const spawnY = Math.floor(Math.random() * ((window.innerHeight - (window.innerHeight / 15)) - 100)) + 50;
+            
+            enemyNode.style.left = spawnX + 'px';
+            enemyNode.style.top = spawnY + 'px';
+            
+            world.appendChild(enemyNode);
+            enemiesArray.push({ element: enemyNode, x: spawnX, y: spawnY });
         }
 
-        // Intercept WASD presses and route movement steps directly across the grid axis
-        window.addEventListener('keydown', (event) => {
-            const activeKey = event.key.toLowerCase();
-            let moved = false;
+        // Arrow Mechanics Logic Function
+        function fireArrow() {
+            const arrowNode = document.createElement('div');
+            arrowNode.classList.add('arrow');
+            
+            // Set launch origins pointing adjacent to player node space
+            let aX = pX + 40;
+            let aY = pY + 18;
+            
+            arrowNode.style.left = aX + 'px';
+            arrowNode.style.top = aY + 'px';
+            world.appendChild(arrowNode);
 
-            if (activeKey === 'w') { gridY -= 1; moved = true; }
-            if (activeKey === 's') { gridY += 1; moved = true; }
-            if (activeKey === 'a') { gridX -= 1; moved = true; }
-            if (activeKey === 'd') { gridX += 1; moved = true; }
+            statusText.innerText = "ACTION: Arrow launched straight ahead!";
 
-            if (moved) {
-                renderMovement();
-                // Randomly display classic script updates inside the text log box
-                if (Math.random() > 0.6) {
-                    const randomMessage = travelQuotes[Math.floor(Math.random() * travelQuotes.length)];
-                    textFeed.innerText = randomMessage;
+            const arrowInterval = setInterval(() => {
+                aX += 12;
+                arrowNode.style.left = aX + 'px';
+
+                // Hit Detection Collision Validation Sweep
+                enemiesArray.forEach((enemyObj, index) => {
+                    if (aX >= enemyObj.x && aX <= enemyObj.x + 36 &&
+                        aY >= enemyObj.y && aY <= enemyObj.y + 36) {
+                        
+                        // Execute strike cleanups
+                        enemyObj.element.remove();
+                        enemiesArray.splice(index, 1);
+                        arrowNode.remove();
+                        clearInterval(arrowInterval);
+                        
+                        statusText.innerText = "SUCCESS: Enemy struck down cleanly! Target eliminated.";
+                        
+                        // Respawn new replacement challenge targets automatically
+                        setTimeout(spawnTargetEnemy, 1500);
+                    }
+                });
+
+                // Garbage cleanup for offscreen assets
+                if (aX > window.innerWidth) {
+                    arrowNode.remove();
+                    clearInterval(arrowInterval);
                 }
+            }, 20);
+        }
+
+        // Active Key Capture Bindings
+        window.addEventListener('keydown', (e) => {
+            const input = e.key.toLowerCase();
+            
+            if (input === 'w') pY -= moveSpeed;
+            if (input === 's') pY += moveSpeed;
+            if (input === 'a') pX -= moveSpeed;
+            if (input === 'd') pX += moveSpeed;
+            
+            if (e.key === ' ' || e.code === 'Space') {
+                e.preventDefault(); // Prevents page from jumping down on spacebar
+                fireArrow();
             }
+
+            updatePlayerPlacement();
         });
 
-        // Run starter render on setup initialization
-        renderMovement();
+        // Initialize setup loops
+        updatePlayerPlacement();
+        for(let i=0; i < 5; i++) { spawnTargetEnemy(); } // Pre-populates field with 5 targets immediately
     </script>
 </body>
 </html>
-
