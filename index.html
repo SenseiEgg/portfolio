@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2D Isometric RPG Framework</title>
+    <title>Classic 2D Top-Down RPG Engine</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
         
         body {
-            background: #0f111a;
-            color: #00ff66;
+            background: #222;
+            color: #fff;
             height: 100vh;
             display: flex;
             flex-direction: column;
@@ -18,194 +18,157 @@
             overflow: hidden;
         }
 
-        /* RPG Game Monitor */
-        .game-viewport {
+        /* Classic Game Boy Style Screen Viewport */
+        .game-screen {
             position: relative;
-            width: 700px;
-            height: 450px;
-            background: #121824;
-            border-radius: 8px;
-            box-shadow: 0 0 30px rgba(0, 255, 102, 0.2);
-            border: 3px solid #00ff66;
+            width: 512px;
+            height: 448px;
+            background: #8bac0f; /* Retro green tint background */
+            border: 8px solid #333;
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             overflow: hidden;
         }
 
-        /* Isometric Map Camera Container */
-        .map-camera {
+        /* 2D Flat Top-Down Map Grid (No 3D Tilting) */
+        .rpg-map {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* World Plane Rotated into 2.5D Projection */
-        .iso-world {
-            position: relative;
-            width: 400px;
-            height: 400px;
-            transform: rotateX(60deg) rotateZ(-45deg);
-            transform-style: preserve-3d;
-        }
-
-        /* Flat Tile Grid */
-        .grid-map {
-            position: absolute;
-            width: 100%;
-            height: 100%;
+            width: 512px;
+            height: 320px;
             display: grid;
-            grid-template-columns: repeat(8, 1fr);
-            grid-template-rows: repeat(8, 1fr);
-            background: #1b2234;
+            grid-template-columns: repeat(8, 64px);
+            grid-template-rows: repeat(5, 64px);
         }
 
+        /* Map World Grass Tiles */
         .tile {
-            border: 1px solid rgba(0, 255, 102, 0.15);
-            background: #161c2a;
-            transition: background 0.2s;
+            width: 64px;
+            height: 64px;
+            background: #9bbc0f;
+            border: 1px solid #8bac0f;
+            image-rendering: pixelated; /* Keeps pixel art sharp if using images */
         }
-        .tile:nth-child(odd) { background: #1a2130; }
+        /* Create alternate tile shades to mimic retro texture patterns */
+        .tile:nth-child(3n) { background: #8bac0f; }
 
-        /* Controllable Player Entity */
+        /* Controllable 2D Character Sprite Block */
         .player-sprite {
             position: absolute;
-            width: 35px;
-            height: 35px;
-            background: #ff0055;
-            border: 2px solid #ffffff;
-            box-shadow: -4px 4px 0px #aa0033, 0 10px 15px rgba(0,0,0,0.5);
-            transform: translateZ(15px); /* Raise sprite above ground */
-            transition: left 0.1s linear, top 0.1s linear;
+            width: 48px;
+            height: 48px;
+            background: #306230; /* Dark green placeholder block */
+            border: 3px solid #0f380f;
             border-radius: 4px;
+            left: 0px;
+            top: 0px;
+            /* Center the sprite nicely inside its current 64px tile path */
+            margin-left: 8px;
+            margin-top: 8px;
+            transition: left 0.1s cubic-bezier(0.25, 1, 0.5, 1), top 0.1s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 10;
         }
 
-        /* UI Overlays */
-        .game-hud {
+        /* Iconic RPG Text Dialogue Box Layout */
+        .dialogue-box {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
+            bottom: 0;
             left: 0;
-            pointer-events: none;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            width: 100%;
+            height: 128px;
+            background: #ffffff;
+            border-top: 6px double #0f380f;
+            padding: 16px;
+            color: #0f380f;
+            font-weight: bold;
+            font-size: 18px;
+            line-height: 1.4;
         }
 
-        .hud-row {
-            display: flex;
-            justify-content: space-between;
-            pointer-events: auto;
+        .hud-tip {
+            font-size: 12px;
+            margin-top: 8px;
+            color: #888;
+            letter-spacing: 1px;
         }
-
-        .hud-panel {
-            background: rgba(15, 23, 42, 0.9);
-            padding: 10px 15px;
-            border-radius: 4px;
-            border: 1px solid #00ff66;
-            font-size: 13px;
-            color: #ffffff;
-            text-shadow: 0 0 5px #00ff66;
-        }
-
-        .controls-tip {
-            color: #00ff66;
-            animation: blink 1.5s infinite;
-        }
-
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-        .project-details {
-            margin-top: 20px;
-            text-align: center;
-        }
-        .project-details h1 { font-size: 18px; letter-spacing: 2px; }
-        .project-details p { font-size: 13px; color: #577093; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-    <!-- Game Viewport -->
-    <div class="game-viewport">
+    <!-- Retro Game Engine Viewport Container -->
+    <div class="game-screen">
         
-        <!-- Isometric Engine Camera -->
-        <div class="map-camera">
-            <div class="iso-world">
-                <!-- 8x8 Visual Map Matrix -->
-                <div class="grid-map" id="map-grid"></div>
-                <!-- Dynamic Player Sprite -->
-                <div id="player" class="player-sprite"></div>
-            </div>
+        <!-- 2D Overworld Map Grid View -->
+        <div class="rpg-map" id="world-map"></div>
+        
+        <!-- Player Sprite Character Instance -->
+        <div id="hero" class="player-sprite"></div>
+
+        <!-- Classic Bottom Dialogue Display Window -->
+        <div class="dialogue-box">
+            <div id="text-feed">SENSEIEGG started a new trial adventure!</div>
+            <div class="hud-tip">[WASD keys to walk around map]</div>
         </div>
 
-        <!-- 2D Screen Space RPG HUD Layer -->
-        <div class="game-hud">
-            <div class="hud-row">
-                <div class="hud-panel">🕹️ ENGINE: ACTIVE</div>
-                <div class="hud-panel">📍 POS: <span id="pos-display">X: 0, Y: 0</span></div>
-            </div>
-            
-            <div class="hud-row">
-                <div class="hud-panel controls-tip">⌨️ PRESS [W, A, S, D] TO WALK HERO</div>
-                <div class="hud-panel">MAP: 8x8 SYSTEM</div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Metadata for Recruiter Review -->
-    <div class="project-details">
-        <h1>[SENSEIEGG_ENGINE_V1]</h1>
-        <p>A reactive JavaScript movement matrix mapping keys directly to isometric ground projections.</p>
     </div>
 
     <script>
-        // Generate visual matrix tiles programmatically 
-        const gridMap = document.getElementById('map-grid');
-        for (let i = 0; i < 64; i++) {
-            const tile = document.createElement('div');
-            tile.classList.add('tile');
-            gridMap.appendChild(tile);
+        // Draw standard 8x5 map grid structure programmatically
+        const mapContainer = document.getElementById('world-map');
+        for (let i = 0; i < 40; i++) {
+            const block = document.createElement('div');
+            block.classList.add('tile');
+            mapContainer.appendChild(block);
         }
 
-        const player = document.getElementById('player');
-        const posDisplay = document.getElementById('pos-display');
+        const hero = document.getElementById('hero');
+        const textFeed = document.getElementById('text-feed');
 
-        // Grid coordinate layout settings
-        let pX = 0; // Grid position horizontal (0-7)
-        let pY = 0; // Grid position vertical (0-7)
-        const tileSize = 50; // Size matching our 400px container split into 8 chunks
+        // Track standard cell coordinate indices directly
+        let gridX = 0; // Boundary range: 0 to 7 chunks horizontally
+        let gridY = 0; // Boundary range: 0 to 4 chunks vertically
+        const stepSize = 64; // Distance step increment matches tile size dimensions exactly
 
-        // Translate abstract grid indexes into visual layout placements
-        function updatePlayerPosition() {
-            // Constrain movement paths within boundary edges
-            pX = Math.max(0, Math.min(7, pX));
-            pY = Math.max(0, Math.min(7, pY));
+        // Array of randomized flavor text alert updates to cycle through on footsteps
+        const travelQuotes = [
+            "You walked into some tall grass... Nothing appeared.",
+            "A cozy breeze blows past your pixelated face.",
+            "You found a hidden item signpost! It reads: 'Keep Coding!'",
+            "Your UI/UX design internship entry details look promising!",
+            "You hear familiar retro 8-bit chiptune melodies playing nearby."
+        ];
 
-            player.style.left = (pX * tileSize) + 'px';
-            player.style.top = (pY * tileSize) + 'px';
-            
-            posDisplay.innerText = `X: ${pX}, Y: ${pY}`;
+        function renderMovement() {
+            // Keep player firmly bounded within active viewport screen dimensions
+            gridX = Math.max(0, Math.min(7, gridX));
+            gridY = Math.max(0, Math.min(4, gridY));
+
+            hero.style.left = (gridX * stepSize) + 'px';
+            hero.style.top = (gridY * stepSize) + 'px';
         }
 
-        // Catch active key presses and resolve screen directions accurately
-        window.addEventListener('keydown', (e) => {
-            const key = e.key.toLowerCase();
-            
-            // Isometric perspective remaps directions:
-            // 'w' moves up-right, 's' moves down-left, etc.
-            if (key === 'w') { pY -= 1; }
-            if (key === 's') { pY += 1; }
-            if (key === 'a') { pX -= 1; }
-            if (key === 'd') { pX += 1; }
+        // Intercept WASD presses and route movement steps directly across the grid axis
+        window.addEventListener('keydown', (event) => {
+            const activeKey = event.key.toLowerCase();
+            let moved = false;
 
-            updatePlayerPosition();
+            if (activeKey === 'w') { gridY -= 1; moved = true; }
+            if (activeKey === 's') { gridY += 1; moved = true; }
+            if (activeKey === 'a') { gridX -= 1; moved = true; }
+            if (activeKey === 'd') { gridX += 1; moved = true; }
+
+            if (moved) {
+                renderMovement();
+                // Randomly display classic script updates inside the text log box
+                if (Math.random() > 0.6) {
+                    const randomMessage = travelQuotes[Math.floor(Math.random() * travelQuotes.length)];
+                    textFeed.innerText = randomMessage;
+                }
+            }
         });
 
-        // Initialize setup on load
-        updatePlayerPosition();
+        // Run starter render on setup initialization
+        renderMovement();
     </script>
 </body>
 </html>
+
