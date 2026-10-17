@@ -67,235 +67,252 @@
 
     <!-- The Shop Interface -->
     <div id="shopMenu">
-        <button id="buyRapid" onclick="buyWeapon('RapidFire')">Buy Rapid Fire (Cost: 15 Coins)</button>
-        <button id="buySpread" onclick="buyWeapon('SpreadShot')">Buy Spread Shot (Cost: 30 Coins)</button>
+        <button id="buyRapid">Buy Rapid Fire (Cost: 15 Coins)</button>
+        <button id="buySpread">Buy Spread Shot (Cost: 30 Coins)</button>
     </div>
 
 <script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+// Defer execution entirely until the canvas node exists in the browser window
+window.onload = function() {
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
 
-// Input State Tracking
-const keys = {};
-window.addEventListener("keydown", (e) => keys[e.code] = true);
-window.addEventListener("keyup", (e) => keys[e.code] = false);
+    // Input State Tracking
+    const keys = {};
+    window.addEventListener("keydown", (e) => keys[e.code] = true);
+    window.addEventListener("keyup", (e) => keys[e.code] = false);
 
-// Weapon Configurations
-const weapons = {
-    Default:   { name: "Standard Bow", fireRate: 400, speed: 7, damage: 1, type: "single" },
-    RapidFire: { name: "Repeater Crossbow", fireRate: 150, speed: 10, damage: 1, type: "single", price: 15, unlocked: false },
-    SpreadShot:{ name: "Burst Volley", fireRate: 600, speed: 6, damage: 1, type: "spread", price: 30, unlocked: false }
-};
+    // Weapon Configurations
+    const weapons = {
+        Default:   { name: "Standard Bow", fireRate: 400, speed: 7, damage: 1, type: "single" },
+        RapidFire: { name: "Repeater Crossbow", fireRate: 150, speed: 10, damage: 1, type: "single", price: 15, unlocked: false },
+        SpreadShot:{ name: "Burst Volley", fireRate: 600, speed: 6, damage: 1, type: "spread", price: 30, unlocked: false }
+    };
 
-// Game Entities Global Arrays
-let player = {
-    x: canvas.width / 2,
-    y: canvas.height / 2,
-    radius: 15,
-    speed: 4,
-    coins: 0,
-    currentWeapon: weapons.Default,
-    lastShotTime: 0
-};
+    // Game Entities Global Arrays
+    let player = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        radius: 15,
+        speed: 4,
+        coins: 0,
+        currentWeapon: weapons.Default,
+        lastShotTime: 0
+    };
 
-let arrows = [];
-let enemies = [];
+    let arrows = [];
+    let enemies = [];
 
-// Spawn an initial cluster of enemies
-for (let i = 0; i < 4; i++) {
-    spawnEnemy();
-}
-
-// Automatically spawn a new enemy every 3 seconds to keep action going
-setInterval(spawnEnemy, 3000);
-
-function spawnEnemy() {
-    // Spawn enemies securely away from the center player zone
-    let edgeX = Math.random() > 0.5 ? 50 : canvas.width - 50;
-    let edgeY = Math.random() * (canvas.height - 100) + 50;
-    enemies.push({
-        x: edgeX,
-        y: edgeY,
-        radius: 12,
-        speed: 1.5,
-        health: 3
-    });
-}
-
-// Weapon Shop Logic Engine
-function buyWeapon(weaponKey) {
-    let weapon = weapons[weaponKey];
-    
-    if (weapon.unlocked) {
-        player.currentWeapon = weapon;
-    } else if (player.coins >= weapon.price) {
-        player.coins -= weapon.price;
-        weapon.unlocked = true;
-        player.currentWeapon = weapon;
-    }
-    updateShopUI();
-}
-
-function updateShopUI() {
-    let rapidBtn = document.getElementById("buyRapid");
-    let spreadBtn = document.getElementById("buySpread");
-
-    // Manage Rapid Fire State Layout
-    if (weapons.RapidFire.unlocked) {
-        rapidBtn.innerText = player.currentWeapon === weapons.RapidFire ? "Equipped: Rapid" : "Equip Rapid Fire";
-        rapidBtn.disabled = false;
-    } else {
-        rapidBtn.disabled = player.coins < weapons.RapidFire.price;
+    // Spawn initial engine assets safely inside bounds
+    for (let i = 0; i < 4; i++) {
+        spawnEnemy();
     }
 
-    // Manage Spread Shot State Layout
-    if (weapons.SpreadShot.unlocked) {
-        spreadBtn.innerText = player.currentWeapon === weapons.SpreadShot ? "Equipped: Spread" : "Equip Spread Shot";
-        spreadBtn.disabled = false;
-    } else {
-        spreadBtn.disabled = player.coins < weapons.SpreadShot.price;
-    }
-}
+    // Process cyclical background enemy spawns safely
+    setInterval(spawnEnemy, 3000);
 
-// Master Math Function for vector firing angles
-function createArrow(dx, dy, angleOffset = 0) {
-    // Normalise base vector axis
-    let length = Math.sqrt(dx * dx + dy * dy);
-    let baseVx = dx / length;
-    let baseVy = dy / length;
-
-    // Apply any angular spread geometry adjustments
-    let rad = angleOffset * (Math.PI / 180);
-    let vx = baseVx * Math.cos(rad) - baseVy * Math.sin(rad);
-    let vy = baseVx * Math.sin(rad) + baseVy * Math.cos(rad);
-
-    arrows.push({
-        x: player.x,
-        y: player.y,
-        vx: vx * player.currentWeapon.speed,
-        vy: vy * player.currentWeapon.speed,
-        radius: 4,
-        damage: player.currentWeapon.damage
-    });
-}
-
-// Engine Frame Update Routine
-function update() {
-    // --- 1. PLAYER WASD MOVEMENT ---
-    let moveX = 0;
-    let moveY = 0;
-    if (keys["KeyW"]) moveY -= 1;
-    if (keys["KeyS"]) moveY += 1;
-    if (keys["KeyA"]) moveX -= 1;
-    if (keys["KeyD"]) moveX += 1;
-
-    if (moveX !== 0 && moveY !== 0) { // Normalize diagonal tracking speed
-        moveX *= 0.7071;
-        moveY *= 0.7071;
-    }
-    player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x + moveX * player.speed));
-    player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y + moveY * player.speed));
-
-    // --- 2. ISAAC-STYLE ARROW KEY SHOOTING ---
-    let shootX = 0;
-    let shootY = 0;
-    if (keys["ArrowUp"])    shootY -= 1;
-    if (keys["ArrowDown"])  shootY += 1;
-    if (keys["ArrowLeft"])  shootX -= 1;
-    if (keys["ArrowRight"]) shootX += 1;
-
-    // Isolate cardinal priority axis choice
-    if (shootX !== 0 && shootY !== 0) {
-        shootY = 0; // Lock to purely Horizontal if both hit together
+    function spawnEnemy() {
+        let edgeX = Math.random() > 0.5 ? 50 : canvas.width - 50;
+        let edgeY = Math.random() * (canvas.height - 100) + 50;
+        enemies.push({
+            x: edgeX,
+            y: edgeY,
+            radius: 12,
+            speed: 1.5,
+            health: 3
+        });
     }
 
-    if ((shootX !== 0 || shootY !== 0)) {
-        let currentTime = Date.now();
-        if (currentTime - player.lastShotTime >= player.currentWeapon.fireRate) {
-            
-            if (player.currentWeapon.type === "spread") {
-                createArrow(shootX, shootY, 0);
-                createArrow(shootX, shootY, 20);  // Left split
-                createArrow(shootX, shootY, -20); // Right split
-            } else {
-                createArrow(shootX, shootY, 0);
+    // Weapon Shop Click Bindings
+    document.getElementById("buyRapid").onclick = () => buyWeapon('RapidFire');
+    document.getElementById("buySpread").onclick = () => buyWeapon('SpreadShot');
+
+    function buyWeapon(weaponKey) {
+        let weapon = weapons[weaponKey];
+        if (weapon.unlocked) {
+            player.currentWeapon = weapon;
+        } else if (player.coins >= weapon.price) {
+            player.coins -= weapon.price;
+            weapon.unlocked = true;
+            player.currentWeapon = weapon;
+        }
+        updateShopUI();
+    }
+
+    function updateShopUI() {
+        let rapidBtn = document.getElementById("buyRapid");
+        let spreadBtn = document.getElementById("buySpread");
+
+        if (weapons.RapidFire.unlocked) {
+            rapidBtn.innerText = player.currentWeapon === weapons.RapidFire ? "Equipped: Rapid" : "Equip Rapid Fire";
+            rapidBtn.disabled = false;
+        } else {
+            rapidBtn.disabled = player.coins < weapons.RapidFire.price;
+        }
+
+        if (weapons.SpreadShot.unlocked) {
+            spreadBtn.innerText = player.currentWeapon === weapons.SpreadShot ? "Equipped: Spread" : "Equip Spread Shot";
+            spreadBtn.disabled = false;
+        } else {
+            spreadBtn.disabled = player.coins < weapons.SpreadShot.price;
+        }
+    }
+
+    function createArrow(dx, dy, angleOffset = 0) {
+        let length = Math.sqrt(dx * dx + dy * dy);
+        let baseVx = dx / length;
+        let baseVy = dy / length;
+
+        let rad = angleOffset * (Math.PI / 180);
+        let vx = baseVx * Math.cos(rad) - baseVy * Math.sin(rad);
+        let vy = baseVx * Math.sin(rad) + baseVy * Math.cos(rad);
+
+        arrows.push({
+            x: player.x,
+            y: player.y,
+            vx: vx * player.currentWeapon.speed,
+            vy: vy * player.currentWeapon.speed,
+            radius: 4,
+            damage: player.currentWeapon.damage
+        });
+    }
+
+    function update() {
+        // --- 1. MOVEMENT MECHANICS ---
+        let moveX = 0;
+        let moveY = 0;
+        if (keys["KeyW"]) moveY -= 1;
+        if (keys["KeyS"]) moveY += 1;
+        if (keys["KeyA"]) moveX -= 1;
+        if (keys["KeyD"]) moveX += 1;
+
+        if (moveX !== 0 && moveY !== 0) {
+            moveX *= 0.7071;
+            moveY *= 0.7071;
+        }
+        player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x + moveX * player.speed));
+        player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y + moveY * player.speed));
+
+        // --- 2. GRID ACTION SHOOTING ROUTINE ---
+        let shootX = 0;
+        let shootY = 0;
+        if (keys["ArrowUp"])    shootY -= 1;
+        if (keys["ArrowDown"])  shootY += 1;
+        if (keys["ArrowLeft"])  shootX -= 1;
+        if (keys["ArrowRight"]) shootX += 1;
+
+        if (shootX !== 0 && shootY !== 0) {
+            shootY = 0; 
+        }
+
+        if ((shootX !== 0 || shootY !== 0)) {
+            let currentTime = Date.now();
+            if (currentTime - player.lastShotTime >= player.currentWeapon.fireRate) {
+                if (player.currentWeapon.type === "spread") {
+                    createArrow(shootX, shootY, 0);
+                    createArrow(shootX, shootY, 20);
+                    createArrow(shootX, shootY, -20);
+                } else {
+                    createArrow(shootX, shootY, 0);
+                }
+                player.lastShotTime = currentTime;
             }
-            player.lastShotTime = currentTime;
+        }
+
+        // --- 3. PROJECTILE SIMULATION ---
+        for (let i = arrows.length - 1; i >= 0; i--) {
+            let a = arrows[i];
+            a.x += a.vx;
+            a.y += a.vy;
+
+            if (a.x < 0 || a.x > canvas.width || a.y < 0 || a.y > canvas.height) {
+                arrows.splice(i, 1);
+            }
+        }
+
+        // --- 4. ENEMY RUNTIME AI TRACKING ---
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            let e = enemies[i];
+            let diffX = player.x - e.x;
+            let diffY = player.y - e.y;
+            let dist = Math.sqrt(diffX * diffX + diffY * diffY);
+
+            if (dist > 0) {
+                e.x += (diffX / dist) * e.speed;
+                e.y += (diffY / dist) * e.speed;
+            }
+
+            // --- 5. HIT COLLISIONS ---
+            for (let j = arrows.length - 1; j >= 0; j--) {
+                let a = arrows[j];
+                let aDiffX = a.x - e.x;
+                let aDiffY = a.y - e.y;
+                let aDist = Math.sqrt(aDiffX * aDiffX + aDiffY * aDiffY);
+
+                if (aDist < e.radius + a.radius) {
+                    e.health -= a.damage;
+                    arrows.splice(j, 1);
+
+                    if (e.health <= 0) {
+                        enemies.splice(i, 1);
+                        player.coins += 5;
+                        updateShopUI();
+                        break;
+                    }
+                }
+            }
         }
     }
 
-    // --- 3. PROJECTILE PHYSICAL TRANSLATION ---
-    for (let i = arrows.length - 1; i >= 0; i--) {
-        let a = arrows[i];
-        a.x += a.vx;
-        a.y += a.vy;
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Cleanup out-of-bounds screen assets
-        if (a.x < 0 || a.x > canvas.width || a.y < 0 || a.y > canvas.height) {
-            arrows.splice(i, 1);
-        }
+        // Player Circle Graphic
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#3498db";
+        ctx.fill();
+        ctx.closePath();
+
+        // Arrow Particles
+        ctx.fillStyle = "#f1c40f";
+        arrows.forEach(a => {
+            ctx.beginPath();
+            ctx.arc(a.x, a.y, a.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.closePath();
+        });
+
+        // Monster Circles
+        enemies.forEach(e => {
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+            ctx.fillStyle = "#e74c3c";
+            ctx.fill();
+            ctx.closePath();
+
+            ctx.fillStyle = "#fff";
+            ctx.font = "10px sans-serif";
+            ctx.fillText("HP:" + e.health, e.x - 12, e.y - 18);
+        });
+
+        // Dashboard Metrics Display
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "18px 'Courier New'";
+        ctx.fillText("💰 Coins: " + player.coins, 20, 35);
+        ctx.fillText("🏹 Weapon: " + player.currentWeapon.name, 20, 60);
     }
 
-    // --- 4. ENEMY CHASE AI SYSTEM ---
-    for (let i = enemies.length - 1; i >= 0; i--) {
-        let e = enemies[i];
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
 
-        // Track target vector calculations
-        let diffX = player.x - e.x;
-        let diffY = player.y - e.y;
-        let dist = Math.sqrt(diffX * diffX + diffY * diffY);
-
-        if (dist > 0) {
-            e.x += (diffX / dist) * e.speed;
-            e.y += (diffY / dist) * e.speed;
-        }
-
-        // --- 5. DAMAGE & COLLISION MATRIX ---
-        for (let j = arrows.length - 1; j >= 0; j--) {
-            let a = arrows[j];
-            let aDiffX = a.x - e.x;
-            let aDiffY = a.y - e.y;
-            let aDist = Math.sqrt(aDiffX * aDiffX + aDiffY * aDiffY);
-
-            // Trigger hit detection on overlap boundary
-            if (aDist  {
-        ctx.beginPath();
-        ctx.arc(a.x, a.y, a.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.closePath();
-    });
-
-    // Render Enemies
-    enemies.forEach(e => {
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
-        ctx.fillStyle = "#e74c3c";
-        ctx.fill();
-        ctx.closePath();
-
-        // Simple Health Box Overlays
-        ctx.fillStyle = "#fff";
-        ctx.font = "10px sans-serif";
-        ctx.fillText("HP:" + e.health, e.x - 12, e.y - 18);
-    });
-
-    // Screen Text Engine Status Dashboard UI
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "18px 'Courier New'";
-    ctx.fillText("💰 Coins: " + player.coins, 20, 35);
-    ctx.fillText("🏹 Weapon: " + player.currentWeapon.name, 20, 60);
-}
-
-// Setup Standard Frame Progression Callback Loop
-function loop() {
-    update();
-    draw();
-    requestAnimationFrame(loop);
-}
-
-// Launch Frame Loop Routine
-updateShopUI();
-loop();
+    // Boot complete loop runtime
+    updateShopUI();
+    loop();
+};
 </script>
 
 </body>
