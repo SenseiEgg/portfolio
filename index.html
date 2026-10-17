@@ -3,239 +3,300 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Full-Screen 2D RPG Action Engine</title>
+    <title>Roguelike Shooter Prototype</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
-        
-        body, html {
-            width: 100%;
-            height: 100%;
-            background: #111;
+        body {
+            margin: 0;
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
             overflow: hidden;
+        }
+        #gameContainer {
             position: relative;
         }
-
-        /* Full Screen Playable Overworld Canvas */
-        .rpg-world {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: calc(100vh - (100vh / 15)); /* Reserves exactly 1/15th for the taskbar */
-            background: #4a7c59; /* Classic RPG grass green background */
-            background-image: 
-                radial-gradient(rgba(0,0,0,0.08) 15%, transparent 16%),
-                radial-gradient(rgba(0,0,0,0.05) 15%, transparent 16%);
-            background-size: 60px 60px;
-            background-position: 0 0, 30px 30px;
+        canvas {
+            background-color: #2b2b2b;
+            border: 4px solid #444;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            display: block;
         }
-
-        /* Player Character Sprite Block */
-        .player-sprite {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: #2b5c8f; /* Blue Hero Block */
-            border: 3px solid #1a3a5f;
-            border-radius: 6px;
-            z-index: 10;
-            box-shadow: 0 6px 10px rgba(0,0,0,0.3);
-            transition: left 0.1s linear, top 0.1s linear;
-        }
-
-        /* Bow and Arrow Weapon Graphic Overlay attached to Hero */
-        .bow-attachment {
-            position: absolute;
-            right: -10px;
-            top: 12px;
-            width: 6px;
-            height: 16px;
-            background: #8b5a2b; /* Wooden bow indicator */
-            border-radius: 50%;
-            border-left: 2px solid #fff; /* String link line */
-        }
-
-        /* Dynamic Spawned Enemy Target Objects */
-        .enemy {
-            position: absolute;
-            width: 36px;
-            height: 36px;
-            background: #b23b3b; /* Red Aggro Entity Block */
-            border: 3px solid #5c1a1a;
-            border-radius: 4px;
-            z-index: 5;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transition: all 0.2s ease;
-        }
-
-        /* Projectile Arrow Node Elements */
-        .arrow {
-            position: absolute;
-            width: 16px;
-            height: 4px;
-            background: #ddd;
-            border-top: 1px solid #333;
-            border-bottom: 1px solid #333;
-            z-index: 8;
-        }
-
-        /* Taskbar Box Element taking up exactly 1/15th of the window height */
-        .game-taskbar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100vw;
-            height: calc(100vh / 15);
-            background: #f4f4f4;
-            border-top: 4px double #333;
-            padding: 0 20px;
-            color: #222;
-            font-weight: bold;
+        #shopMenu {
+            margin-top: 15px;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            gap: 15px;
+        }
+        button {
+            background-color: #444;
+            color: #fff;
+            border: 2px solid #666;
+            padding: 8px 15px;
+            cursor: pointer;
             font-size: 14px;
-            z-index: 100;
+            font-weight: bold;
+            border-radius: 4px;
+            transition: all 0.2s;
         }
-
-        .log-feed {
-            color: #c0392b;
-            font-size: 15px;
-            flex-grow: 1;
-            margin-left: 30px;
+        button:hover {
+            background-color: #555;
+            border-color: #888;
         }
-
-        .controls-legend {
-            font-size: 11px;
-            color: #666;
-            text-align: right;
+        button:disabled {
+            background-color: #222;
+            color: #555;
+            border-color: #333;
+            cursor: not-allowed;
         }
     </style>
 </head>
 <body>
 
-    <!-- Playable Arena Layer -->
-    <div class="rpg-world" id="world">
-        <!-- Player Entity with Equipped Bow -->
-        <div id="player" class="player-sprite">
-            <div class="bow-attachment"></div>
-        </div>
+    <div style="margin-bottom: 10px; text-align: center;">
+        <h2>Isaac-Style HTML Shooter</h2>
+        <p>Move: <b>W, A, S, D</b> | Shoot: <b>Arrow Keys</b></p>
     </div>
 
-    <!-- Taskbar Footer Monitor -->
-    <div class="game-taskbar">
-        <div>🏹 WEAPON: ACTIVE BOW</div>
-        <div class="log-feed" id="status-text">SYSTEM: An enemy camp spawned across the fields!</div>
-        <div class="controls-legend">⚡ [WASD] Move | [SPACEBAR] Shoot Right</div>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
     </div>
 
-    <script>
-        const world = document.getElementById('world');
-        const player = document.getElementById('player');
-        const statusText = document.getElementById('status-text');
+    <!-- The Shop Interface -->
+    <div id="shopMenu">
+        <button id="buyRapid" onclick="buyWeapon('RapidFire')">Buy Rapid Fire (Cost: 15 Coins)</button>
+        <button id="buySpread" onclick="buyWeapon('SpreadShot')">Buy Spread Shot (Cost: 30 Coins)</button>
+    </div>
 
-        // Dynamic Position Bounds Management
-        let pX = 100; 
-        let pY = 100;
-        const moveSpeed = 25;
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-        // Tracks active array lists for runtime rendering loops
-        let enemiesArray = [];
-        let arrowsArray = [];
+// Input State Tracking
+const keys = {};
+window.addEventListener("keydown", (e) => keys[e.code] = true);
+window.addEventListener("keyup", (e) => keys[e.code] = false);
 
-        function updatePlayerPlacement() {
-            // Read active screen window sizes dynamically
-            const maxWidth = window.innerWidth - 45;
-            const maxHeight = (window.innerHeight - (window.innerHeight / 15)) - 45;
+// Weapon Configurations
+const weapons = {
+    Default:   { name: "Standard Bow", fireRate: 400, speed: 7, damage: 1, type: "single" },
+    RapidFire: { name: "Repeater Crossbow", fireRate: 150, speed: 10, damage: 1, type: "single", price: 15, unlocked: false },
+    SpreadShot:{ name: "Burst Volley", fireRate: 600, speed: 6, damage: 1, type: "spread", price: 30, unlocked: false }
+};
 
-            pX = Math.max(10, Math.min(maxWidth, pX));
-            pY = Math.max(10, Math.min(maxHeight, pY));
+// Game Entities Global Arrays
+let player = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    radius: 15,
+    speed: 4,
+    coins: 0,
+    currentWeapon: weapons.Default,
+    lastShotTime: 0
+};
 
-            player.style.left = pX + 'px';
-            player.style.top = pY + 'px';
-        }
+let arrows = [];
+let enemies = [];
 
-        // Programmatic Enemy Factory Spawner
-        function spawnTargetEnemy() {
-            const enemyNode = document.createElement('div');
-            enemyNode.classList.add('enemy');
+// Spawn an initial cluster of enemies
+for (let i = 0; i < 4; i++) {
+    spawnEnemy();
+}
+
+// Automatically spawn a new enemy every 3 seconds to keep action going
+setInterval(spawnEnemy, 3000);
+
+function spawnEnemy() {
+    // Spawn enemies securely away from the center player zone
+    let edgeX = Math.random() > 0.5 ? 50 : canvas.width - 50;
+    let edgeY = Math.random() * (canvas.height - 100) + 50;
+    enemies.push({
+        x: edgeX,
+        y: edgeY,
+        radius: 12,
+        speed: 1.5,
+        health: 3
+    });
+}
+
+// Weapon Shop Logic Engine
+function buyWeapon(weaponKey) {
+    let weapon = weapons[weaponKey];
+    
+    if (weapon.unlocked) {
+        player.currentWeapon = weapon;
+    } else if (player.coins >= weapon.price) {
+        player.coins -= weapon.price;
+        weapon.unlocked = true;
+        player.currentWeapon = weapon;
+    }
+    updateShopUI();
+}
+
+function updateShopUI() {
+    let rapidBtn = document.getElementById("buyRapid");
+    let spreadBtn = document.getElementById("buySpread");
+
+    // Manage Rapid Fire State Layout
+    if (weapons.RapidFire.unlocked) {
+        rapidBtn.innerText = player.currentWeapon === weapons.RapidFire ? "Equipped: Rapid" : "Equip Rapid Fire";
+        rapidBtn.disabled = false;
+    } else {
+        rapidBtn.disabled = player.coins < weapons.RapidFire.price;
+    }
+
+    // Manage Spread Shot State Layout
+    if (weapons.SpreadShot.unlocked) {
+        spreadBtn.innerText = player.currentWeapon === weapons.SpreadShot ? "Equipped: Spread" : "Equip Spread Shot";
+        spreadBtn.disabled = false;
+    } else {
+        spreadBtn.disabled = player.coins < weapons.SpreadShot.price;
+    }
+}
+
+// Master Math Function for vector firing angles
+function createArrow(dx, dy, angleOffset = 0) {
+    // Normalise base vector axis
+    let length = Math.sqrt(dx * dx + dy * dy);
+    let baseVx = dx / length;
+    let baseVy = dy / length;
+
+    // Apply any angular spread geometry adjustments
+    let rad = angleOffset * (Math.PI / 180);
+    let vx = baseVx * Math.cos(rad) - baseVy * Math.sin(rad);
+    let vy = baseVx * Math.sin(rad) + baseVy * Math.cos(rad);
+
+    arrows.push({
+        x: player.x,
+        y: player.y,
+        vx: vx * player.currentWeapon.speed,
+        vy: vy * player.currentWeapon.speed,
+        radius: 4,
+        damage: player.currentWeapon.damage
+    });
+}
+
+// Engine Frame Update Routine
+function update() {
+    // --- 1. PLAYER WASD MOVEMENT ---
+    let moveX = 0;
+    let moveY = 0;
+    if (keys["KeyW"]) moveY -= 1;
+    if (keys["KeyS"]) moveY += 1;
+    if (keys["KeyA"]) moveX -= 1;
+    if (keys["KeyD"]) moveX += 1;
+
+    if (moveX !== 0 && moveY !== 0) { // Normalize diagonal tracking speed
+        moveX *= 0.7071;
+        moveY *= 0.7071;
+    }
+    player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x + moveX * player.speed));
+    player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y + moveY * player.speed));
+
+    // --- 2. ISAAC-STYLE ARROW KEY SHOOTING ---
+    let shootX = 0;
+    let shootY = 0;
+    if (keys["ArrowUp"])    shootY -= 1;
+    if (keys["ArrowDown"])  shootY += 1;
+    if (keys["ArrowLeft"])  shootX -= 1;
+    if (keys["ArrowRight"]) shootX += 1;
+
+    // Isolate cardinal priority axis choice
+    if (shootX !== 0 && shootY !== 0) {
+        shootY = 0; // Lock to purely Horizontal if both hit together
+    }
+
+    if ((shootX !== 0 || shootY !== 0)) {
+        let currentTime = Date.now();
+        if (currentTime - player.lastShotTime >= player.currentWeapon.fireRate) {
             
-            // Generate random plot coordinates avoiding the header edges
-            const spawnX = Math.floor(Math.random() * (window.innerWidth - 100)) + 50;
-            const spawnY = Math.floor(Math.random() * ((window.innerHeight - (window.innerHeight / 15)) - 100)) + 50;
-            
-            enemyNode.style.left = spawnX + 'px';
-            enemyNode.style.top = spawnY + 'px';
-            
-            world.appendChild(enemyNode);
-            enemiesArray.push({ element: enemyNode, x: spawnX, y: spawnY });
-        }
-
-        // Arrow Mechanics Logic Function
-        function fireArrow() {
-            const arrowNode = document.createElement('div');
-            arrowNode.classList.add('arrow');
-            
-            // Set launch origins pointing adjacent to player node space
-            let aX = pX + 40;
-            let aY = pY + 18;
-            
-            arrowNode.style.left = aX + 'px';
-            arrowNode.style.top = aY + 'px';
-            world.appendChild(arrowNode);
-
-            statusText.innerText = "ACTION: Arrow launched straight ahead!";
-
-            const arrowInterval = setInterval(() => {
-                aX += 12;
-                arrowNode.style.left = aX + 'px';
-
-                // Hit Detection Collision Validation Sweep
-                enemiesArray.forEach((enemyObj, index) => {
-                    if (aX >= enemyObj.x && aX <= enemyObj.x + 36 &&
-                        aY >= enemyObj.y && aY <= enemyObj.y + 36) {
-                        
-                        // Execute strike cleanups
-                        enemyObj.element.remove();
-                        enemiesArray.splice(index, 1);
-                        arrowNode.remove();
-                        clearInterval(arrowInterval);
-                        
-                        statusText.innerText = "SUCCESS: Enemy struck down cleanly! Target eliminated.";
-                        
-                        // Respawn new replacement challenge targets automatically
-                        setTimeout(spawnTargetEnemy, 1500);
-                    }
-                });
-
-                // Garbage cleanup for offscreen assets
-                if (aX > window.innerWidth) {
-                    arrowNode.remove();
-                    clearInterval(arrowInterval);
-                }
-            }, 20);
-        }
-
-        // Active Key Capture Bindings
-        window.addEventListener('keydown', (e) => {
-            const input = e.key.toLowerCase();
-            
-            if (input === 'w') pY -= moveSpeed;
-            if (input === 's') pY += moveSpeed;
-            if (input === 'a') pX -= moveSpeed;
-            if (input === 'd') pX += moveSpeed;
-            
-            if (e.key === ' ' || e.code === 'Space') {
-                e.preventDefault(); // Prevents page from jumping down on spacebar
-                fireArrow();
+            if (player.currentWeapon.type === "spread") {
+                createArrow(shootX, shootY, 0);
+                createArrow(shootX, shootY, 20);  // Left split
+                createArrow(shootX, shootY, -20); // Right split
+            } else {
+                createArrow(shootX, shootY, 0);
             }
+            player.lastShotTime = currentTime;
+        }
+    }
 
-            updatePlayerPlacement();
-        });
+    // --- 3. PROJECTILE PHYSICAL TRANSLATION ---
+    for (let i = arrows.length - 1; i >= 0; i--) {
+        let a = arrows[i];
+        a.x += a.vx;
+        a.y += a.vy;
 
-        // Initialize setup loops
-        updatePlayerPlacement();
-        for(let i=0; i < 5; i++) { spawnTargetEnemy(); } // Pre-populates field with 5 targets immediately
-    </script>
+        // Cleanup out-of-bounds screen assets
+        if (a.x < 0 || a.x > canvas.width || a.y < 0 || a.y > canvas.height) {
+            arrows.splice(i, 1);
+        }
+    }
+
+    // --- 4. ENEMY CHASE AI SYSTEM ---
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        let e = enemies[i];
+
+        // Track target vector calculations
+        let diffX = player.x - e.x;
+        let diffY = player.y - e.y;
+        let dist = Math.sqrt(diffX * diffX + diffY * diffY);
+
+        if (dist > 0) {
+            e.x += (diffX / dist) * e.speed;
+            e.y += (diffY / dist) * e.speed;
+        }
+
+        // --- 5. DAMAGE & COLLISION MATRIX ---
+        for (let j = arrows.length - 1; j >= 0; j--) {
+            let a = arrows[j];
+            let aDiffX = a.x - e.x;
+            let aDiffY = a.y - e.y;
+            let aDist = Math.sqrt(aDiffX * aDiffX + aDiffY * aDiffY);
+
+            // Trigger hit detection on overlap boundary
+            if (aDist  {
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, a.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.closePath();
+    });
+
+    // Render Enemies
+    enemies.forEach(e => {
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#e74c3c";
+        ctx.fill();
+        ctx.closePath();
+
+        // Simple Health Box Overlays
+        ctx.fillStyle = "#fff";
+        ctx.font = "10px sans-serif";
+        ctx.fillText("HP:" + e.health, e.x - 12, e.y - 18);
+    });
+
+    // Screen Text Engine Status Dashboard UI
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "18px 'Courier New'";
+    ctx.fillText("💰 Coins: " + player.coins, 20, 35);
+    ctx.fillText("🏹 Weapon: " + player.currentWeapon.name, 20, 60);
+}
+
+// Setup Standard Frame Progression Callback Loop
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+// Launch Frame Loop Routine
+updateShopUI();
+loop();
+</script>
+
 </body>
 </html>
